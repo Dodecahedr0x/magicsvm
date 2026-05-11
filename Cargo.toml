@@ -7,7 +7,7 @@ exclude = ["crates/node-litesvm/tests/clock-example"]
 version = "0.11.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/LiteSVM/litesvm"
+repository = "https://github.com/Dodecahedr0x/magicsvm"
 rust-version = "1.86.0"
 
 [workspace.dependencies]
@@ -25,7 +25,7 @@ hex = "0.4.3"
 indexmap = "2.12"
 itertools = "0.14"
 libsecp256k1 = "0.6.0"
-litesvm = { path = "crates/litesvm", version = "0.11" }
+magicsvm = { path = "crates/magicsvm", version = "0.11" }
 log = "0.4"
 magicblock-delegation-program-api = { version = "0.1.1", default-features = false }
 magicblock-magic-program-api = "0.8.8"

@@ -3,7 +3,7 @@ name: release NodeJS
 on:
   push:
     tags:
-    - "node-v[0-9]+.[0-9]+.[0-9]+"
+      - "node-v[0-9]+.[0-9]+.[0-9]+"
 jobs:
   publish:
     name: Publish
@@ -16,25 +16,25 @@ jobs:
           node-version: 22
           check-latest: true
           cache: yarn
-          cache-dependency-path: crates/node-litesvm/yarn.lock
+          cache-dependency-path: crates/node-magicsvm/yarn.lock
       - name: Install dependencies
-        run: cd crates/node-litesvm/ && corepack enable && yarn install
+        run: cd crates/node-magicsvm/ && corepack enable && yarn install
       - name: Create npm dirs
-        run: cd crates/node-litesvm/ && yarn napi create-npm-dirs
+        run: cd crates/node-magicsvm/ && yarn napi create-npm-dirs
       - name: Download all artifacts
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: node-build.yml
-          path: crates/node-litesvm/artifacts
+          path: crates/node-magicsvm/artifacts
       - name: Move artifacts
-        run: cd crates/node-litesvm/ && yarn artifacts
+        run: cd crates/node-magicsvm/ && yarn artifacts
       - name: Compile Typescript
-        run: cd crates/node-litesvm/ && yarn build:js
+        run: cd crates/node-magicsvm/ && yarn build:js
       - name: List packages
-        run: cd crates/node-litesvm/ && ls -R ./npm
+        run: cd crates/node-magicsvm/ && ls -R ./npm
       - name: Publish
         run: |
-          cd crates/node-litesvm/
+          cd crates/node-magicsvm/
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           npm publish --access public
         env:

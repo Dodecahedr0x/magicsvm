@@ -1950,7 +1950,61 @@ dependencies = [
 ]
 
 [[package]]
-name = "litesvm"
+name = "lock_api"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
+name = "log"
+version = "0.4.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+
+[[package]]
+name = "magicblock-delegation-program-api"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a413fd0a3ce67bba8c31b681f37088a897d47a3c39fd0d9303725882898ad78"
+dependencies = [
+ "bincode",
+ "borsh 1.6.1",
+ "bytemuck",
+ "const-crypto",
+ "num_enum",
+ "pinocchio 0.10.2",
+ "pinocchio-log",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "rkyv",
+ "serde",
+ "solana-address 2.5.0",
+ "solana-instruction 3.3.0",
+ "solana-program",
+ "solana-sha256-hasher 3.1.0",
+ "static_assertions",
+ "strum",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "magicblock-magic-program-api"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "291f7a68f6cc622741a3fae513bd71640911abefd1fae2b2602b934515ed4b95"
+dependencies = [
+ "bincode",
+ "const-crypto",
+ "serde",
+ "solana-program",
+ "solana-signature 2.3.0",
+]
+
+[[package]]
+name = "magicsvm"
 version = "0.11.0"
 dependencies = [
  "agave-feature-set",
@@ -2031,11 +2085,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "litesvm-loader"
+name = "magicsvm-loader"
 version = "0.11.0"
 dependencies = [
  "agave-feature-set",
- "litesvm",
+ "magicsvm",
  "solana-address 2.5.0",
  "solana-instruction 3.3.0",
  "solana-keypair",
@@ -2047,13 +2101,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "litesvm-node"
+name = "magicsvm-node"
 version = "1.0.0"
 dependencies = [
  "agave-feature-set",
  "bincode",
  "bv",
- "litesvm",
+ "magicsvm",
  "napi",
  "napi-build",
  "napi-derive",
@@ -2078,10 +2132,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "litesvm-token"
+name = "magicsvm-token"
 version = "0.11.0"
 dependencies = [
- "litesvm",
+ "magicsvm",
  "smallvec",
  "solana-account 3.4.0",
  "solana-address 2.5.0",
@@ -2097,60 +2151,6 @@ dependencies = [
  "spl-associated-token-account-interface",
  "spl-token-2022-interface",
  "spl-token-interface",
-]
-
-[[package]]
-name = "lock_api"
-version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
-dependencies = [
- "scopeguard",
-]
-
-[[package]]
-name = "log"
-version = "0.4.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
-
-[[package]]
-name = "magicblock-delegation-program-api"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a413fd0a3ce67bba8c31b681f37088a897d47a3c39fd0d9303725882898ad78"
-dependencies = [
- "bincode",
- "borsh 1.6.1",
- "bytemuck",
- "const-crypto",
- "num_enum",
- "pinocchio 0.10.2",
- "pinocchio-log",
- "pinocchio-pubkey",
- "pinocchio-system",
- "rkyv",
- "serde",
- "solana-address 2.5.0",
- "solana-instruction 3.3.0",
- "solana-program",
- "solana-sha256-hasher 3.1.0",
- "static_assertions",
- "strum",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "magicblock-magic-program-api"
-version = "0.8.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "291f7a68f6cc622741a3fae513bd71640911abefd1fae2b2602b934515ed4b95"
-dependencies = [
- "bincode",
- "const-crypto",
- "serde",
- "solana-program",
- "solana-signature 2.3.0",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 use {
-    litesvm::LiteSVM,
+    magicsvm::LiteSVM,
     litesvm_token::{
         get_spl_account, spl_token::state::Mint, CreateAssociatedTokenAccount, CreateNativeMint,
         SyncNative,

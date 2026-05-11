@@ -2,7 +2,7 @@
 use super::{spl_token::instruction::transfer, TOKEN_ID};
 use {
     super::get_multisig_signers,
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     smallvec::{smallvec, SmallVec},
     solana_address::Address,
     solana_keypair::Keypair,

@@ -1,6 +1,6 @@
 use {
     super::{get_multisig_signers, spl_token::instruction::revoke, TOKEN_ID},
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     smallvec::{smallvec, SmallVec},
     solana_address::Address,
     solana_keypair::Keypair,

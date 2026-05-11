@@ -1,25 +1,25 @@
 name: node-build
 env:
   DEBUG: napi:*
-  APP_NAME: litesvm
-  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  APP_NAME: magicsvm
+  MACOSX_DEPLOYMENT_TARGET: "10.13"
 on:
   push:
     branches: [master]
     paths-ignore:
-      - '**/*.md'
+      - "**/*.md"
       - LICENSE
-      - '**/*.gitignore'
+      - "**/*.gitignore"
       - .editorconfig
-      - crates/node-litesvm/docs/**
+      - crates/node-magicsvm/docs/**
   pull_request:
     branches: [master]
     paths-ignore:
-      - '**/*.md'
+      - "**/*.md"
       - LICENSE
-      - '**/*.gitignore'
+      - "**/*.gitignore"
       - .editorconfig
-      - crates/node-litesvm/docs/**
+      - crates/node-magicsvm/docs/**
 
 jobs:
   lint:
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: crates/node-litesvm
+        working-directory: crates/node-magicsvm
     steps:
       - uses: actions/checkout@v6
 
@@ -35,8 +35,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: 'yarn'
-          cache-dependency-path: crates/node-litesvm/yarn.lock
+          cache: "yarn"
+          cache-dependency-path: crates/node-magicsvm/yarn.lock
 
       - name: Install
         uses: dtolnay/rust-toolchain@nightly
@@ -81,7 +81,7 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
-        working-directory: crates/node-litesvm
+        working-directory: crates/node-magicsvm
     steps:
       - uses: actions/checkout@v6
       - name: Setup node
@@ -89,7 +89,7 @@ jobs:
         with:
           node-version: 22
           cache: yarn
-          cache-dependency-path: crates/node-litesvm/yarn.lock
+          cache-dependency-path: crates/node-magicsvm/yarn.lock
       - name: Install
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: crates/node-litesvm/litesvm/litesvm.*.node
+          path: crates/node-magicsvm/magicsvm/magicsvm.*.node
           if-no-files-found: error
   test-macOS-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -147,12 +147,12 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
         node:
-          - '20'
-          - '22'
+          - "20"
+          - "22"
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
-        working-directory: crates/node-litesvm
+        working-directory: crates/node-magicsvm
     steps:
       - uses: actions/checkout@v6
       - name: Setup node
@@ -161,14 +161,14 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: yarn
           architecture: ${{ matrix.settings.architecture }}
-          cache-dependency-path: crates/node-litesvm/yarn.lock
+          cache-dependency-path: crates/node-magicsvm/yarn.lock
       - name: Install dependencies
         run: yarn install
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: crates/node-litesvm/litesvm
+          path: crates/node-magicsvm/magicsvm
       - name: List packages
         run: ls -R .
         shell: bash
@@ -188,12 +188,12 @@ jobs:
           - aarch64-unknown-linux-musl
           # - armv7-unknown-linux-gnueabihf
         node:
-          - '20'
-          - '22'
+          - "20"
+          - "22"
     runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     defaults:
-        run:
-          working-directory: crates/node-litesvm
+      run:
+        working-directory: crates/node-magicsvm
     steps:
       - uses: actions/checkout@v6
       - name: Setup node
@@ -201,7 +201,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: yarn
-          cache-dependency-path: crates/node-litesvm/yarn.lock
+          cache-dependency-path: crates/node-magicsvm/yarn.lock
       - name: Output docker params
         id: docker
         run: |
@@ -230,7 +230,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: bindings-${{ matrix.target }}
-          path: crates/node-litesvm/litesvm
+          path: crates/node-magicsvm/magicsvm
       - name: List packages
         run: ls -R .
         shell: bash
@@ -245,5 +245,5 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: ${{ steps.docker.outputs.IMAGE }}
-          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/crates/node-litesvm --platform ${{ steps.docker.outputs.PLATFORM }}
+          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}/crates/node-magicsvm --platform ${{ steps.docker.outputs.PLATFORM }}
           run: yarn test

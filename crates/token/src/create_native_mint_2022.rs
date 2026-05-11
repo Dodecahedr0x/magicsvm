@@ -1,5 +1,5 @@
 use {
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     solana_address::Address,
     solana_keypair::Keypair,
     solana_signer::Signer,

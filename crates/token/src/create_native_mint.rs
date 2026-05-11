@@ -1,5 +1,5 @@
 use {
-    litesvm::LiteSVM,
+    magicsvm::LiteSVM,
     solana_account::Account,
     solana_program_option::COption,
     solana_program_pack::Pack,
