@@ -1,9 +1,9 @@
 use {
-    magicsvm::LiteSVM,
     litesvm_token::{
         get_spl_account, spl_token::state::Mint, CreateAssociatedTokenAccount, CreateNativeMint,
         SyncNative,
     },
+    magicsvm::LiteSVM,
     solana_keypair::Keypair,
     solana_native_token::LAMPORTS_PER_SOL,
     solana_signer::Signer,

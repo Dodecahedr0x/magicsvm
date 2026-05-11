@@ -1,4 +1,15 @@
 use {
+    dlp_api::{
+        args::{
+            DelegateArgs, DelegateWithActionsArgs, EncryptedBuffer, MaybeEncryptedAccountMeta,
+            MaybeEncryptedInstruction, MaybeEncryptedIxData, MaybeEncryptedPubkey,
+            PostDelegationActions,
+        },
+        compact::{AccountMeta as CompactAccountMeta, ClearText},
+        discriminator::DlpDiscriminator,
+        encryption,
+        pda::{DELEGATE_BUFFER_TAG, DELEGATION_METADATA_TAG, DELEGATION_RECORD_TAG},
+    },
     magicblock_magic_program_api::{
         args::{
             CommitAndUndelegateArgs, CommitTypeArgs, MagicBaseIntentArgs, MagicIntentBundleArgs,
@@ -10,12 +21,13 @@ use {
         MagicSVM, TransactionTarget, DEFAULT_VALIDATOR_IDENTITY, DELEGATION_PROGRAM_ID,
         MAGIC_CONTEXT_ID, MAGIC_PROGRAM_ID,
     },
-    solana_account::ReadableAccount,
+    solana_account::{Account, ReadableAccount},
     solana_instruction::{account_meta::AccountMeta, error::InstructionError, Instruction},
     solana_keypair::Keypair,
     solana_message::Message,
     solana_native_token::LAMPORTS_PER_SOL,
-    solana_sdk_ids::bpf_loader_upgradeable,
+    solana_sdk_ids::{bpf_loader_upgradeable, system_program},
+    solana_signature::Signature,
     solana_signer::Signer,
     solana_system_interface::instruction::allocate,
     solana_transaction::Transaction,
@@ -51,6 +63,105 @@ fn schedule_commit_tx(
         ),
         blockhash,
     )
+}
+
+fn delegate_with_actions_tx(
+    payer: &Keypair,
+    delegated_account: &Keypair,
+    actions: PostDelegationActions,
+    action_accounts: Vec<AccountMeta>,
+    blockhash: solana_hash::Hash,
+) -> Transaction {
+    let owner = system_program::id();
+    let delegate_buffer = solana_address::Address::find_program_address(
+        &[DELEGATE_BUFFER_TAG, delegated_account.pubkey().as_ref()],
+        &owner,
+    )
+    .0;
+    let delegation_record = solana_address::Address::find_program_address(
+        &[DELEGATION_RECORD_TAG, delegated_account.pubkey().as_ref()],
+        &DELEGATION_PROGRAM_ID,
+    )
+    .0;
+    let delegation_metadata = solana_address::Address::find_program_address(
+        &[DELEGATION_METADATA_TAG, delegated_account.pubkey().as_ref()],
+        &DELEGATION_PROGRAM_ID,
+    )
+    .0;
+    let args = DelegateWithActionsArgs {
+        delegate: DelegateArgs::default(),
+        actions,
+    };
+    let mut data = DlpDiscriminator::DelegateWithActions.to_vec();
+    data.extend_from_slice(&borsh::to_vec(&args).unwrap());
+
+    let mut accounts = vec![
+        AccountMeta::new(payer.pubkey(), true),
+        AccountMeta::new(delegated_account.pubkey(), true),
+        AccountMeta::new_readonly(owner, false),
+        AccountMeta::new(delegate_buffer, false),
+        AccountMeta::new(delegation_record, false),
+        AccountMeta::new(delegation_metadata, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+    ];
+    accounts.extend(action_accounts);
+
+    Transaction::new(
+        &[payer, delegated_account],
+        Message::new(
+            &[Instruction {
+                program_id: DELEGATION_PROGRAM_ID,
+                accounts,
+                data,
+            }],
+            Some(&payer.pubkey()),
+        ),
+        blockhash,
+    )
+}
+
+fn encrypted_noop_post_delegation_actions(
+    validator: solana_address::Address,
+    delegated_account: solana_address::Address,
+) -> PostDelegationActions {
+    let noop_data = bincode::serialize(&MagicBlockInstruction::Noop(0)).unwrap();
+    PostDelegationActions {
+        inserted_signers: 0,
+        inserted_non_signers: 0,
+        signers: vec![delegated_account.to_bytes()],
+        non_signers: vec![MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
+            encryption::encrypt_ed25519_recipient(
+                &MAGIC_PROGRAM_ID.to_bytes(),
+                &validator.to_bytes(),
+            )
+            .unwrap(),
+        ))],
+        instructions: vec![MaybeEncryptedInstruction {
+            program_id: 1,
+            accounts: vec![MaybeEncryptedAccountMeta::ClearText(
+                CompactAccountMeta::try_new(0, true, false).unwrap(),
+            )],
+            data: MaybeEncryptedIxData {
+                prefix: Vec::new(),
+                suffix: EncryptedBuffer::new(
+                    encryption::encrypt_ed25519_recipient(&noop_data, &validator.to_bytes())
+                        .unwrap(),
+                ),
+            },
+        }],
+    }
+}
+
+fn set_delegation_ready_account(svm: &mut MagicSVM, delegated_account: solana_address::Address) {
+    svm.set_account(
+        delegated_account,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            owner: DELEGATION_PROGRAM_ID,
+            ..Default::default()
+        },
+    )
+    .unwrap();
 }
 
 #[test_log::test]
@@ -125,13 +236,16 @@ fn ephemeral_magic_program_accepts_noop_and_rejects_invalid_data() {
 fn magic_svm_defaults_to_magicblock_validator_identity() {
     let svm = MagicSVM::new();
 
-    assert_eq!(svm.validator_identity(), DEFAULT_VALIDATOR_IDENTITY);
+    assert_eq!(
+        svm.validator_identity(),
+        Keypair::from_base58_string(DEFAULT_VALIDATOR_IDENTITY).pubkey()
+    );
 }
 
 #[test_log::test]
 fn magic_svm_can_be_initialized_with_a_validator_identity() {
     let validator = Keypair::new();
-    let svm = MagicSVM::new_with_validator_identity(validator.pubkey());
+    let svm = MagicSVM::new_with_validator_identity(validator.insecure_clone());
 
     assert_eq!(svm.validator_identity(), validator.pubkey());
 }
@@ -214,6 +328,94 @@ fn delegated_accounts_are_mirrored_to_ephemeral_ledger() {
     assert!(!ephemeral_account.ephemeral());
     assert!(!ephemeral_account.compressed());
     assert!(!ephemeral_account.confined());
+}
+
+#[test_log::test]
+fn delegate_with_actions_runs_cleartext_actions_on_ephemeral() {
+    let payer = Keypair::new();
+    let delegated = Keypair::new();
+    let mut svm = MagicSVM::new();
+    svm.airdrop(&payer.pubkey(), LAMPORTS_PER_SOL).unwrap();
+    set_delegation_ready_account(&mut svm, delegated.pubkey());
+
+    let actions = vec![Instruction::new_with_bincode(
+        MAGIC_PROGRAM_ID,
+        &MagicBlockInstruction::Noop(0),
+        vec![AccountMeta::new_readonly(delegated.pubkey(), true)],
+    )]
+    .cleartext();
+    let tx = delegate_with_actions_tx(
+        &payer,
+        &delegated,
+        actions,
+        vec![
+            AccountMeta::new(delegated.pubkey(), true),
+            AccountMeta::new_readonly(MAGIC_PROGRAM_ID, false),
+        ],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction_to(TransactionTarget::Base, tx)
+        .unwrap();
+
+    assert!(svm
+        .get_transaction_for(TransactionTarget::Ephemeral, &Signature::default())
+        .is_some());
+}
+
+#[test_log::test]
+fn delegate_with_actions_decrypts_encrypted_actions_with_validator_keypair() {
+    let payer = Keypair::new();
+    let delegated = Keypair::new();
+    let validator = Keypair::new();
+    let mut svm = MagicSVM::new_with_validator_identity(validator.insecure_clone());
+    svm.airdrop(&payer.pubkey(), LAMPORTS_PER_SOL).unwrap();
+    set_delegation_ready_account(&mut svm, delegated.pubkey());
+
+    let actions = encrypted_noop_post_delegation_actions(validator.pubkey(), delegated.pubkey());
+    let tx = delegate_with_actions_tx(
+        &payer,
+        &delegated,
+        actions,
+        vec![AccountMeta::new(delegated.pubkey(), true)],
+        svm.latest_blockhash(),
+    );
+
+    svm.send_transaction_to(TransactionTarget::Base, tx)
+        .unwrap();
+
+    assert!(svm
+        .get_transaction_for(TransactionTarget::Ephemeral, &Signature::default())
+        .is_some());
+}
+
+#[test_log::test]
+fn delegate_with_actions_errors_when_encrypted_actions_cannot_be_decrypted() {
+    let payer = Keypair::new();
+    let delegated = Keypair::new();
+    let wrong_validator = Keypair::new();
+    let mut svm = MagicSVM::new();
+    svm.airdrop(&payer.pubkey(), LAMPORTS_PER_SOL).unwrap();
+    set_delegation_ready_account(&mut svm, delegated.pubkey());
+
+    let actions =
+        encrypted_noop_post_delegation_actions(wrong_validator.pubkey(), delegated.pubkey());
+    let tx = delegate_with_actions_tx(
+        &payer,
+        &delegated,
+        actions,
+        vec![AccountMeta::new(delegated.pubkey(), true)],
+        svm.latest_blockhash(),
+    );
+
+    let err = svm
+        .send_transaction_to(TransactionTarget::Base, tx)
+        .unwrap_err()
+        .err;
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(0, InstructionError::InvalidInstructionData)
+    );
 }
 
 #[test_log::test]

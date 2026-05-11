@@ -32,11 +32,15 @@ agave-reserved-account-keys = { workspace = true, features = [
 agave-syscalls.workspace = true
 ansi_term.workspace = true
 bincode.workspace = true
+borsh = "1.6.1"
 hashbrown = { workspace = true, optional = true }
 indexmap.workspace = true
 itertools.workspace = true
 log.workspace = true
-magicblock-delegation-program-api.workspace = true
+magicblock-delegation-program-api = { workspace = true, features = [
+    "encryption",
+    "instruction",
+] }
 magicblock-magic-program-api.workspace = true
 qualifier_attr = { workspace = true, optional = true }
 serde.workspace = true

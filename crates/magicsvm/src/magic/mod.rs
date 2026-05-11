@@ -5,13 +5,26 @@ use {
         types::{FailedTransactionMetadata, TransactionMetadata, TransactionResult},
         LiteSVM,
     },
-    dlp_api::{discriminator::DlpDiscriminator, state::DelegationRecord},
+    borsh::BorshDeserialize,
+    dlp_api::{
+        args::{
+            DelegateWithActionsArgs, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
+            MaybeEncryptedPubkey, PostDelegationActions,
+        },
+        compact,
+        discriminator::DlpDiscriminator,
+        encryption::{self, KEY_LEN},
+        state::DelegationRecord,
+    },
     solana_account::{Account, AccountSharedData, ReadableAccount, WritableAccount},
-    solana_address::{address, Address},
+    solana_address::Address,
     solana_hash::Hash,
-    solana_message::VersionedMessage,
+    solana_instruction::{AccountMeta, Instruction},
+    solana_keypair::Keypair,
+    solana_message::{Message, VersionedMessage},
     solana_signature::Signature,
-    solana_transaction::versioned::VersionedTransaction,
+    solana_signer::Signer,
+    solana_transaction::{versioned::VersionedTransaction, InstructionError, Transaction},
     solana_transaction_error::TransactionError,
     std::{
         collections::HashSet,
@@ -27,8 +40,8 @@ pub const MAGIC_PROGRAM_ID: Address =
     Address::new_from_array(magicblock_magic_program_api::ID.to_bytes());
 pub const MAGIC_CONTEXT_ID: Address =
     Address::new_from_array(magicblock_magic_program_api::MAGIC_CONTEXT_PUBKEY.to_bytes());
-pub const DEFAULT_VALIDATOR_IDENTITY: Address =
-    address!("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
+pub const DEFAULT_VALIDATOR_IDENTITY: &str =
+    "9Vo7TbA5YfC5a33JhAi9Fb41usA6JwecHNRw3f9MzzHAM8hFnXTzL5DcEHwsAFjuUZ8vNQcJ4XziRFpMc3gTgBQ";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransactionTarget {
@@ -39,7 +52,7 @@ pub enum TransactionTarget {
 pub struct MagicSVM {
     base: LiteSVM,
     ephemeral: LiteSVM,
-    validator_identity: Address,
+    validator_keypair: Keypair,
     delegated_accounts: HashSet<Address>,
 }
 
@@ -65,10 +78,10 @@ impl DerefMut for MagicSVM {
 
 impl MagicSVM {
     pub fn new() -> Self {
-        Self::new_with_validator_identity(DEFAULT_VALIDATOR_IDENTITY)
+        Self::new_with_validator_identity(Keypair::from_base58_string(DEFAULT_VALIDATOR_IDENTITY))
     }
 
-    pub fn new_with_validator_identity(validator_identity: Address) -> Self {
+    pub fn new_with_validator_identity(validator_keypair: Keypair) -> Self {
         let base = LiteSVM::new();
         let mut ephemeral = LiteSVM::new();
         ephemeral.add_builtin(MAGIC_PROGRAM_ID, MagicProgramEntrypoint::vm);
@@ -86,13 +99,17 @@ impl MagicSVM {
         Self {
             base,
             ephemeral,
-            validator_identity,
+            validator_keypair,
             delegated_accounts: HashSet::new(),
         }
     }
 
+    pub fn validator_keypair(&self) -> &Keypair {
+        &self.validator_keypair
+    }
+
     pub fn validator_identity(&self) -> Address {
-        self.validator_identity
+        self.validator_keypair.pubkey()
     }
 
     pub fn base(&self) -> &LiteSVM {
@@ -219,11 +236,15 @@ impl MagicSVM {
                 let effects = MagicTransactionEffects::from_message(&vtx.message);
                 let writable_accounts = writable_accounts_from_message(&vtx.message);
                 let result = self.base.send_transaction(vtx);
-                if result.is_ok() {
-                    self.apply_base_effects(effects);
+                if let Ok(meta) = result {
+                    if let Err(err) = self.apply_base_effects(effects) {
+                        return Err(FailedTransactionMetadata { err, meta });
+                    }
                     self.apply_base_account_state(&writable_accounts);
+                    Ok(meta)
+                } else {
+                    result
                 }
-                result
             }
             TransactionTarget::Ephemeral => {
                 if let Err(err) = self.check_ephemeral_writable_accounts(&vtx.message) {
@@ -236,7 +257,12 @@ impl MagicSVM {
                     let effects = MagicTransactionEffects::from_ephemeral_message_and_metadata(
                         &message, meta,
                     );
-                    self.apply_base_effects(effects);
+                    if let Err(err) = self.apply_base_effects(effects) {
+                        return Err(FailedTransactionMetadata {
+                            err,
+                            meta: meta.clone(),
+                        });
+                    }
                 }
                 result
             }
@@ -351,9 +377,14 @@ impl MagicSVM {
         }
     }
 
-    fn apply_base_effects(&mut self, effects: MagicTransactionEffects) {
-        for account in effects.delegated_accounts {
-            let _ = self.delegate_account(account);
+    fn apply_base_effects(
+        &mut self,
+        effects: MagicTransactionEffects,
+    ) -> Result<(), TransactionError> {
+        for delegation in effects.delegated_accounts {
+            if self.delegate_account(delegation.account).is_ok() {
+                self.run_post_delegation_actions(delegation.actions)?;
+            }
         }
         for account in effects.committed_accounts {
             self.commit_account(account);
@@ -362,6 +393,41 @@ impl MagicSVM {
             self.commit_account(account);
             self.undelegate_account(account);
         }
+        Ok(())
+    }
+
+    fn run_post_delegation_actions(
+        &mut self,
+        actions: Option<PostDelegationActions>,
+    ) -> Result<(), TransactionError> {
+        let Some(actions) = actions else {
+            return Ok(());
+        };
+
+        let instructions = decrypt_post_delegation_instructions(
+            actions,
+            &self.validator_identity().to_bytes(),
+            &self.validator_keypair.to_bytes(),
+        )?;
+        let Some(payer) = instructions
+            .iter()
+            .flat_map(|instruction| instruction.accounts.iter())
+            .find(|account| account.is_signer)
+            .map(|account| account.pubkey)
+        else {
+            return Err(post_delegation_action_error());
+        };
+        let message = Message::new_with_blockhash(
+            &instructions,
+            Some(&payer),
+            &self.ephemeral.latest_blockhash(),
+        );
+        let tx = Transaction::new_unsigned(message);
+        let sigverify = self.ephemeral.get_sigverify();
+        self.ephemeral.set_sigverify(false);
+        let result = self.send_transaction_to(TransactionTarget::Ephemeral, tx);
+        self.ephemeral.set_sigverify(sigverify);
+        result.map(|_| ()).map_err(|err| err.err)
     }
 
     fn apply_base_account_state(&mut self, writable_accounts: &[Address]) {
@@ -400,9 +466,15 @@ fn failed_transaction(err: TransactionError) -> TransactionResult {
     })
 }
 
+#[derive(Debug)]
+struct DelegationEffect {
+    account: Address,
+    actions: Option<PostDelegationActions>,
+}
+
 #[derive(Default, Debug)]
 struct MagicTransactionEffects {
-    delegated_accounts: Vec<Address>,
+    delegated_accounts: Vec<DelegationEffect>,
     committed_accounts: Vec<Address>,
     undelegated_accounts: Vec<Address>,
 }
@@ -432,7 +504,10 @@ impl MagicTransactionEffects {
                         .get(1)
                         .and_then(|index| account_keys.get(usize::from(*index)))
                     {
-                        effects.delegated_accounts.push(*account);
+                        effects.delegated_accounts.push(DelegationEffect {
+                            account: *account,
+                            actions: post_delegation_actions(discriminator, &instruction.data),
+                        });
                     }
                 }
                 DlpDiscriminator::CommitState
@@ -574,6 +649,158 @@ fn writable_accounts_from_message(message: &VersionedMessage) -> Vec<Address> {
             (index != 0 && message.is_maybe_writable(index, None)).then_some(*key)
         })
         .collect()
+}
+
+fn post_delegation_actions(
+    discriminator: DlpDiscriminator,
+    instruction_data: &[u8],
+) -> Option<PostDelegationActions> {
+    if discriminator != DlpDiscriminator::DelegateWithActions {
+        return None;
+    }
+
+    DelegateWithActionsArgs::try_from_slice(instruction_data.get(8..)?)
+        .ok()
+        .map(|args| args.actions)
+}
+
+fn decrypt_post_delegation_instructions(
+    actions: PostDelegationActions,
+    validator_pubkey: &[u8; KEY_LEN],
+    validator_secret: &[u8],
+) -> Result<Vec<Instruction>, TransactionError> {
+    let validator_x25519_pubkey = encryption::ed25519_pubkey_to_x25519(validator_pubkey)
+        .map_err(|_| post_delegation_action_error())?;
+    let validator_x25519_secret = encryption::ed25519_secret_to_x25519(validator_secret)
+        .map_err(|_| post_delegation_action_error())?;
+    let mut pubkeys: Vec<Address> = actions
+        .signers
+        .iter()
+        .map(|pubkey| Address::new_from_array(*pubkey))
+        .collect();
+    for pubkey in actions.non_signers {
+        pubkeys.push(decrypt_post_delegation_pubkey(
+            pubkey,
+            &validator_x25519_pubkey,
+            &validator_x25519_secret,
+        )?);
+    }
+
+    actions
+        .instructions
+        .into_iter()
+        .map(|instruction| {
+            let program_id = resolve_post_delegation_pubkey(&pubkeys, instruction.program_id)?;
+            let accounts = instruction
+                .accounts
+                .into_iter()
+                .map(|account| {
+                    decrypt_post_delegation_account_meta(
+                        &pubkeys,
+                        account,
+                        &validator_x25519_pubkey,
+                        &validator_x25519_secret,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let data = decrypt_post_delegation_data(
+                instruction.data,
+                &validator_x25519_pubkey,
+                &validator_x25519_secret,
+            )?;
+
+            Ok(Instruction {
+                program_id,
+                accounts,
+                data,
+            })
+        })
+        .collect()
+}
+
+fn decrypt_post_delegation_pubkey(
+    pubkey: MaybeEncryptedPubkey,
+    validator_x25519_pubkey: &[u8; KEY_LEN],
+    validator_x25519_secret: &[u8; KEY_LEN],
+) -> Result<Address, TransactionError> {
+    match pubkey {
+        MaybeEncryptedPubkey::ClearText(pubkey) => Ok(Address::new_from_array(pubkey)),
+        MaybeEncryptedPubkey::Encrypted(buffer) => {
+            let decrypted = encryption::decrypt(
+                buffer.as_bytes(),
+                validator_x25519_pubkey,
+                validator_x25519_secret,
+            )
+            .map_err(|_| post_delegation_action_error())?;
+            let pubkey = <[u8; KEY_LEN]>::try_from(decrypted.as_slice())
+                .map_err(|_| post_delegation_action_error())?;
+            Ok(Address::new_from_array(pubkey))
+        }
+    }
+}
+
+fn decrypt_post_delegation_account_meta(
+    pubkeys: &[Address],
+    account: MaybeEncryptedAccountMeta,
+    validator_x25519_pubkey: &[u8; KEY_LEN],
+    validator_x25519_secret: &[u8; KEY_LEN],
+) -> Result<AccountMeta, TransactionError> {
+    let account = match account {
+        MaybeEncryptedAccountMeta::ClearText(account) => account,
+        MaybeEncryptedAccountMeta::Encrypted(buffer) => {
+            let decrypted = encryption::decrypt(
+                buffer.as_bytes(),
+                validator_x25519_pubkey,
+                validator_x25519_secret,
+            )
+            .map_err(|_| post_delegation_action_error())?;
+            if decrypted.len() != 1 {
+                return Err(post_delegation_action_error());
+            }
+            compact::AccountMeta::from_byte(decrypted[0])
+                .ok_or_else(post_delegation_action_error)?
+        }
+    };
+    let pubkey = resolve_post_delegation_pubkey(pubkeys, account.key())?;
+
+    Ok(if account.is_writable() {
+        AccountMeta::new(pubkey, account.is_signer())
+    } else {
+        AccountMeta::new_readonly(pubkey, account.is_signer())
+    })
+}
+
+fn decrypt_post_delegation_data(
+    data: MaybeEncryptedIxData,
+    validator_x25519_pubkey: &[u8; KEY_LEN],
+    validator_x25519_secret: &[u8; KEY_LEN],
+) -> Result<Vec<u8>, TransactionError> {
+    let mut decrypted_data = data.prefix;
+    if !data.suffix.as_bytes().is_empty() {
+        decrypted_data.extend_from_slice(
+            &encryption::decrypt(
+                data.suffix.as_bytes(),
+                validator_x25519_pubkey,
+                validator_x25519_secret,
+            )
+            .map_err(|_| post_delegation_action_error())?,
+        );
+    }
+    Ok(decrypted_data)
+}
+
+fn resolve_post_delegation_pubkey(
+    pubkeys: &[Address],
+    index: u8,
+) -> Result<Address, TransactionError> {
+    pubkeys
+        .get(usize::from(index))
+        .copied()
+        .ok_or_else(post_delegation_action_error)
+}
+
+fn post_delegation_action_error() -> TransactionError {
+    TransactionError::InstructionError(0, InstructionError::InvalidInstructionData)
 }
 
 fn instruction_discriminator(data: &[u8]) -> Option<DlpDiscriminator> {
