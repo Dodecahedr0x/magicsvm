@@ -24,11 +24,14 @@ jobs:
       - name: Install Solana CLI
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v3.0.3/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          export PATH="$GITHUB_PATH:$PATH"
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          echo "$SOLANA_BIN" >> "$GITHUB_PATH"
 
       - name: Build test programs
-        run: cd crates/magicsvm/test_programs && cargo build-sbf
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          cargo build-sbf --version
+          cd crates/magicsvm/test_programs && cargo build-sbf
 
       - name: Run tests
         run: cargo test --features precompiles

@@ -277,10 +277,10 @@ export declare class InstructionErrorCustom {
   toString(): string
 }
 
-export declare class LiteSvm {
+export declare class MagicSvm {
   /** Creates the basic test environment. */
   constructor(validatorIdentity?: Uint8Array | undefined | null)
-  static default(): LiteSvm
+  static default(): MagicSvm
   setComputeBudget(budget: ComputeBudget): void
   /** Enables or disables sigverify */
   setSigverify(sigverify: boolean): void
