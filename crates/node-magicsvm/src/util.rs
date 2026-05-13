@@ -1,7 +1,14 @@
-use {napi::bindgen_prelude::*, solana_address::Address, solana_hash::Hash, std::str::FromStr};
+use {
+    napi::bindgen_prelude::*, solana_address::Address, solana_hash::Hash, solana_keypair::Keypair,
+    std::str::FromStr,
+};
 
 pub(crate) fn convert_pubkey(address: &[u8]) -> Address {
     Address::try_from(address).unwrap()
+}
+
+pub(crate) fn convert_keypair(bytes: &[u8]) -> Keypair {
+    Keypair::new_from_array(bytes.try_into().unwrap())
 }
 
 pub(crate) fn try_parse_hash(raw: &str) -> Result<Hash> {

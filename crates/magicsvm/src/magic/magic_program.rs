@@ -1,12 +1,15 @@
-use magicblock_magic_program_api::{
-    args::{CommitAndUndelegateArgs, CommitTypeArgs, MagicBaseIntentArgs, MagicIntentBundleArgs},
-    instruction::MagicBlockInstruction,
+use {
+    crate::{MAGIC_CONTEXT_ID, MAGIC_PROGRAM_ID},
+    magicblock_magic_program_api::{
+        args::{
+            CommitAndUndelegateArgs, CommitTypeArgs, MagicBaseIntentArgs, MagicIntentBundleArgs,
+        },
+        instruction::MagicBlockInstruction,
+    },
+    solana_program_runtime::{declare_process_instruction, invoke_context::InvokeContext},
+    solana_transaction::InstructionError,
+    solana_transaction_context::{IndexOfAccount, InstructionContext},
 };
-use solana_program_runtime::{declare_process_instruction, invoke_context::InvokeContext};
-use solana_transaction::InstructionError;
-use solana_transaction_context::{IndexOfAccount, InstructionContext};
-
-use crate::{MAGIC_CONTEXT_ID, MAGIC_PROGRAM_ID};
 
 const DEFAULT_MAGIC_PROGRAM_COMPUTE_UNITS: u64 = 150;
 const MAGIC_PAYER_IDX: IndexOfAccount = 0;

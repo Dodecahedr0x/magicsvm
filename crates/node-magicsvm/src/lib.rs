@@ -12,7 +12,7 @@ use {
         transaction_metadata::{
             FailedTransactionMetadata, SimulatedTransactionInfo, TransactionMetadata,
         },
-        util::{convert_pubkey, try_parse_hash},
+        util::{convert_keypair, convert_pubkey, try_parse_hash},
     },
     bincode::deserialize,
     magicsvm::{
@@ -22,12 +22,13 @@ use {
             SimulatedTransactionInfo as SimulatedTransactionInfoOriginal,
             TransactionResult as TransactionResultOriginal,
         },
-        MagicSVM as LiteSVMOriginal, TransactionTarget, DEFAULT_VALIDATOR_IDENTITY,
+        MagicSVM as MagicSVMOriginal, TransactionTarget, DEFAULT_VALIDATOR_IDENTITY,
     },
     napi::bindgen_prelude::*,
     solana_clock::Clock as ClockOriginal,
     solana_epoch_rewards::EpochRewards as EpochRewardsOriginal,
     solana_epoch_schedule::EpochSchedule as EpochScheduleOriginal,
+    solana_keypair::Keypair,
     solana_last_restart_slot::LastRestartSlot,
     solana_rent::Rent as RentOriginal,
     solana_signature::Signature,
@@ -94,24 +95,24 @@ fn parse_transaction_target(target: String) -> TransactionTarget {
 }
 
 #[napi]
-pub struct LiteSvm(LiteSVMOriginal);
+pub struct MagicSvm(MagicSVMOriginal);
 
 #[napi]
-impl LiteSvm {
+impl MagicSvm {
     /// Creates the basic test environment.
     #[napi(constructor)]
     pub fn new(validator_identity: Option<&[u8]>) -> Self {
         let validator_identity = validator_identity
-            .map(convert_pubkey)
-            .unwrap_or(DEFAULT_VALIDATOR_IDENTITY);
-        Self(LiteSVMOriginal::new_with_validator_identity(
+            .map(convert_keypair)
+            .unwrap_or(Keypair::from_base58_string(DEFAULT_VALIDATOR_IDENTITY));
+        Self(MagicSVMOriginal::new_with_validator_identity(
             validator_identity,
         ))
     }
 
     #[napi(factory, js_name = "default")]
     pub fn new_default() -> Self {
-        Self(LiteSVMOriginal::default())
+        Self(MagicSVMOriginal::default())
     }
 
     #[napi]
