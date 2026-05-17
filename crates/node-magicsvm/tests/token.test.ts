@@ -1,5 +1,5 @@
 import { Address } from "@solana/kit";
-import { LiteSVM } from "litesvm";
+import { LiteSVM } from "magicsvm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -32,10 +32,16 @@ test("create native mints", () => {
   const nativeMint = svm.getAccount(NATIVE_MINT);
   assert.ok(nativeMint.exists, "SPL Token native mint should exist");
   validateData(nativeMint.data, NATIVE_MINT);
-  assert.ok(nativeMint.lamports > 0, "SPL Token native mint should have lamports");
+  assert.ok(
+    nativeMint.lamports > 0,
+    "SPL Token native mint should have lamports",
+  );
 
   const nativeMint2022 = svm.getAccount(NATIVE_MINT_2022);
   assert.ok(nativeMint2022.exists, "Token-2022 native mint should exist");
   validateData(nativeMint2022.data, NATIVE_MINT_2022);
-  assert.ok(nativeMint2022.lamports > 0, "Token-2022 native mint should have lamports");
+  assert.ok(
+    nativeMint2022.lamports > 0,
+    "Token-2022 native mint should have lamports",
+  );
 });

@@ -11,7 +11,7 @@
     "allowJs": true,
     "baseUrl": "magicsvm",
     "paths": {
-      "litesvm": ["./"],
+      "magicsvm": ["./"],
       "@/*": ["../*"]
     },
     "resolveJsonModule": true,

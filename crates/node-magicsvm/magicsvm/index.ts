@@ -1,663 +1,663 @@
 import {
-	Address,
-	assertIsFullySignedTransaction,
-	TransactionMessage,
-	Blockhash,
-	EncodedAccount,
-	ExcludeTransactionMessageLifetime,
-	getAddressCodec,
-	getBase58Encoder,
-	getTransactionEncoder,
-	getTransactionVersionDecoder,
-	Lamports,
-	lamports,
-	MaybeEncodedAccount,
-	setTransactionMessageLifetimeUsingBlockhash,
-	Signature,
-	Transaction,
-	TransactionMessageWithBlockhashLifetime,
-	TransactionMessageWithLifetime,
+  Address,
+  assertIsFullySignedTransaction,
+  TransactionMessage,
+  Blockhash,
+  EncodedAccount,
+  ExcludeTransactionMessageLifetime,
+  getAddressCodec,
+  getBase58Encoder,
+  getTransactionEncoder,
+  getTransactionVersionDecoder,
+  Lamports,
+  lamports,
+  MaybeEncodedAccount,
+  setTransactionMessageLifetimeUsingBlockhash,
+  Signature,
+  Transaction,
+  TransactionMessageWithBlockhashLifetime,
+  TransactionMessageWithLifetime,
 } from "@solana/kit";
 import {
-	Account,
-	AddressAndAccount,
-	Clock,
-	ComputeBudget,
-	EpochRewards,
-	EpochSchedule,
-	FailedTransactionMetadata,
-	FeatureSet,
-	LiteSvm as LiteSVMInner,
-	Rent,
-	SimulatedTransactionInfo as SimulatedTransactionInfoInner,
-	SlotHash,
-	SlotHistory,
-	StakeHistory,
-	TransactionMetadata,
+  Account,
+  AddressAndAccount,
+  Clock,
+  ComputeBudget,
+  EpochRewards,
+  EpochSchedule,
+  FailedTransactionMetadata,
+  FeatureSet,
+  LiteSvm as LiteSVMInner,
+  Rent,
+  SimulatedTransactionInfo as SimulatedTransactionInfoInner,
+  SlotHash,
+  SlotHistory,
+  StakeHistory,
+  TransactionMetadata,
 } from "./internal";
 
 export type TransactionTarget = "base" | "ephemeral";
 export type TransactionTargetOptions = {
-	target?: TransactionTarget;
+  target?: TransactionTarget;
 };
 export type MagicSVMOptions = {
-	validatorIdentity?: Address;
+  validatorIdentity?: Address;
 };
 
 function resolveTransactionTarget(
-	options?: TransactionTargetOptions,
+  options?: TransactionTargetOptions,
 ): TransactionTarget {
-	return options?.target ?? "base";
+  return options?.target ?? "base";
 }
 
 export {
-	Account,
-	Clock,
-	ComputeBudget,
-	EpochRewards,
-	EpochSchedule,
-	FailedTransactionMetadata,
-	FeatureSet,
-	InnerInstruction,
-	Rent,
-	SlotHash,
-	SlotHistory,
-	SlotHistoryCheck,
-	StakeHistory,
-	StakeHistoryEntry,
-	TransactionMetadata,
-	TransactionReturnData,
+  Account,
+  Clock,
+  ComputeBudget,
+  EpochRewards,
+  EpochSchedule,
+  FailedTransactionMetadata,
+  FeatureSet,
+  InnerInstruction,
+  Rent,
+  SlotHash,
+  SlotHistory,
+  SlotHistoryCheck,
+  StakeHistory,
+  StakeHistoryEntry,
+  TransactionMetadata,
+  TransactionReturnData,
 } from "./internal";
 
 function toEncodedAccount(address: Address, account: Account): EncodedAccount {
-	const data = account.data();
-	return {
-		address,
-		executable: account.executable(),
-		lamports: lamports(account.lamports()),
-		programAddress: getAddressCodec().decode(account.owner()),
-		space: BigInt(data.length),
-		data,
-	};
+  const data = account.data();
+  return {
+    address,
+    executable: account.executable(),
+    lamports: lamports(account.lamports()),
+    programAddress: getAddressCodec().decode(account.owner()),
+    space: BigInt(data.length),
+    data,
+  };
 }
 
 export class SimulatedTransactionInfo {
-	constructor(inner: SimulatedTransactionInfoInner) {
-		this.inner = inner;
-	}
-	private inner: SimulatedTransactionInfoInner;
-	meta(): TransactionMetadata {
-		return this.inner.meta();
-	}
-	postAccounts(): EncodedAccount[] {
-		return this.inner
-			.postAccounts()
-			.map((addressAndAccount: AddressAndAccount) =>
-				toEncodedAccount(
-					getAddressCodec().decode(addressAndAccount.address),
-					addressAndAccount.account(),
-				),
-			);
-	}
+  constructor(inner: SimulatedTransactionInfoInner) {
+    this.inner = inner;
+  }
+  private inner: SimulatedTransactionInfoInner;
+  meta(): TransactionMetadata {
+    return this.inner.meta();
+  }
+  postAccounts(): EncodedAccount[] {
+    return this.inner
+      .postAccounts()
+      .map((addressAndAccount: AddressAndAccount) =>
+        toEncodedAccount(
+          getAddressCodec().decode(addressAndAccount.address),
+          addressAndAccount.account(),
+        ),
+      );
+  }
 }
 
 /**
- * The main class in the litesvm library.
+ * The main class in the magicsvm library.
  *
  * Use this to send transactions, query accounts and configure the runtime.
  */
 export class LiteSVM {
-	/** Create a new LiteSVM instance with standard functionality enabled */
-	constructor(options?: MagicSVMOptions) {
-		const inner = new LiteSVMInner(
-			options?.validatorIdentity
-				? (getAddressCodec().encode(options.validatorIdentity) as Uint8Array)
-				: undefined,
-		);
-		this.inner = inner;
-	}
-	private inner: LiteSVMInner;
+  /** Create a new LiteSVM instance with standard functionality enabled */
+  constructor(options?: MagicSVMOptions) {
+    const inner = new LiteSVMInner(
+      options?.validatorIdentity
+        ? (getAddressCodec().encode(options.validatorIdentity) as Uint8Array)
+        : undefined,
+    );
+    this.inner = inner;
+  }
+  private inner: LiteSVMInner;
 
-	/** Create a new LiteSVM instance with minimal functionality enabled */
-	static default(): LiteSVM {
-		const svm = new LiteSVM();
-		const inner = LiteSVMInner.default();
-		svm.inner = inner;
-		return svm;
-	}
+  /** Create a new LiteSVM instance with minimal functionality enabled */
+  static default(): LiteSVM {
+    const svm = new LiteSVM();
+    const inner = LiteSVMInner.default();
+    svm.inner = inner;
+    return svm;
+  }
 
-	/**
-	 * Set the compute budget
-	 * @param budget - The new compute budget
-	 * @returns The modified LiteSVM instance
-	 */
-	withComputeBudget(budget: ComputeBudget): LiteSVM {
-		this.inner.setComputeBudget(budget);
-		return this;
-	}
+  /**
+   * Set the compute budget
+   * @param budget - The new compute budget
+   * @returns The modified LiteSVM instance
+   */
+  withComputeBudget(budget: ComputeBudget): LiteSVM {
+    this.inner.setComputeBudget(budget);
+    return this;
+  }
 
-	/**
-	 * Enable or disable sigverify
-	 * @param sigverify - if false, transaction signatures will not be checked.
-	 * @returns The modified LiteSVM instance
-	 */
-	withSigverify(sigverify: boolean): LiteSVM {
-		this.inner.setSigverify(sigverify);
-		return this;
-	}
+  /**
+   * Enable or disable sigverify
+   * @param sigverify - if false, transaction signatures will not be checked.
+   * @returns The modified LiteSVM instance
+   */
+  withSigverify(sigverify: boolean): LiteSVM {
+    this.inner.setSigverify(sigverify);
+    return this;
+  }
 
-	/**
-	 * Enables or disables transaction blockhash checking.
-	 * @param check - If false, the blockhash check will be skipped
-	 * @returns The modified LiteSVM instance
-	 */
-	withBlockhashCheck(check: boolean): LiteSVM {
-		this.inner.setBlockhashCheck(check);
-		return this;
-	}
+  /**
+   * Enables or disables transaction blockhash checking.
+   * @param check - If false, the blockhash check will be skipped
+   * @returns The modified LiteSVM instance
+   */
+  withBlockhashCheck(check: boolean): LiteSVM {
+    this.inner.setBlockhashCheck(check);
+    return this;
+  }
 
-	/**
-	 * Sets up the standard sysvars.
-	 * @returns The modified LiteSVM instance
-	 */
-	withSysvars(): LiteSVM {
-		this.inner.setSysvars();
-		return this;
-	}
+  /**
+   * Sets up the standard sysvars.
+   * @returns The modified LiteSVM instance
+   */
+  withSysvars(): LiteSVM {
+    this.inner.setSysvars();
+    return this;
+  }
 
-	/**
-	 * Set the FeatureSet used by the VM instance.
-	 * @param featureSet The FeatureSet to use.
-	 * @returns The modified LiteSVM instance
-	 */
-	withFeatureSet(featureSet: FeatureSet): LiteSVM {
-		this.inner.setFeatureSet(featureSet);
-		return this;
-	}
+  /**
+   * Set the FeatureSet used by the VM instance.
+   * @param featureSet The FeatureSet to use.
+   * @returns The modified LiteSVM instance
+   */
+  withFeatureSet(featureSet: FeatureSet): LiteSVM {
+    this.inner.setFeatureSet(featureSet);
+    return this;
+  }
 
-	/**
-	 * Adds the standard builtin programs. Use `withFeatureSet` beforehand to change change what builtins are added.
-	 * @returns The modified LiteSVM instance
-	 */
-	withBuiltins(): LiteSVM {
-		this.inner.setBuiltins();
-		return this;
-	}
+  /**
+   * Adds the standard builtin programs. Use `withFeatureSet` beforehand to change change what builtins are added.
+   * @returns The modified LiteSVM instance
+   */
+  withBuiltins(): LiteSVM {
+    this.inner.setBuiltins();
+    return this;
+  }
 
-	/**
-	 * Changes the initial lamports in LiteSVM's airdrop account.
-	 * @param lamports - The number of lamports to set in the airdrop account
-	 * @returns The modified LiteSVM instance
-	 */
-	withLamports(lamports: bigint): LiteSVM {
-		this.inner.setLamports(lamports);
-		return this;
-	}
+  /**
+   * Changes the initial lamports in LiteSVM's airdrop account.
+   * @param lamports - The number of lamports to set in the airdrop account
+   * @returns The modified LiteSVM instance
+   */
+  withLamports(lamports: bigint): LiteSVM {
+    this.inner.setLamports(lamports);
+    return this;
+  }
 
-	/**
-	 * Adds the standard SPL programs.
-	 * @returns The modified LiteSVM instance
-	 */
-	withDefaultPrograms(): LiteSVM {
-		this.inner.setDefaultPrograms();
-		return this;
-	}
+  /**
+   * Adds the standard SPL programs.
+   * @returns The modified LiteSVM instance
+   */
+  withDefaultPrograms(): LiteSVM {
+    this.inner.setDefaultPrograms();
+    return this;
+  }
 
-	/**
-	 * Adds the native mint accounts for SPL Token and Token-2022, if the programs are loaded.
-	 * @returns The modified LiteSVM instance
-	 */
-	withNativeMints(): LiteSVM {
-		this.inner.withNativeMints();
-		return this;
-	}
+  /**
+   * Adds the native mint accounts for SPL Token and Token-2022, if the programs are loaded.
+   * @returns The modified LiteSVM instance
+   */
+  withNativeMints(): LiteSVM {
+    this.inner.withNativeMints();
+    return this;
+  }
 
-	/**
-	 * Changes the capacity of the transaction history.
-	 * @param capacity - How many transactions to store in history.
-	 * Set this to 0 to disable transaction history and allow duplicate transactions.
-	 * @returns The modified LiteSVM instance
-	 */
-	withTransactionHistory(capacity: bigint): LiteSVM {
-		this.inner.setTransactionHistory(capacity);
-		return this;
-	}
+  /**
+   * Changes the capacity of the transaction history.
+   * @param capacity - How many transactions to store in history.
+   * Set this to 0 to disable transaction history and allow duplicate transactions.
+   * @returns The modified LiteSVM instance
+   */
+  withTransactionHistory(capacity: bigint): LiteSVM {
+    this.inner.setTransactionHistory(capacity);
+    return this;
+  }
 
-	/**
-	 * Set a limit for transaction logs, beyond which they will be truncated.
-	 * @param limit - The limit in bytes. If null, no limit is enforced.
-	 * @returns The modified LiteSVM instance
-	 */
-	withLogBytesLimit(limit?: bigint): LiteSVM {
-		this.inner.setLogBytesLimit(limit);
-		return this;
-	}
+  /**
+   * Set a limit for transaction logs, beyond which they will be truncated.
+   * @param limit - The limit in bytes. If null, no limit is enforced.
+   * @returns The modified LiteSVM instance
+   */
+  withLogBytesLimit(limit?: bigint): LiteSVM {
+    this.inner.setLogBytesLimit(limit);
+    return this;
+  }
 
-	/**
-	 * Adds the standard precompiles. Use `withFeatureSet` beforehand to change change what builtins are added.
-	 * @returns The modified LiteSVM instance
-	 */
-	withPrecompiles(): LiteSVM {
-		this.inner.setPrecompiles();
-		return this;
-	}
+  /**
+   * Adds the standard precompiles. Use `withFeatureSet` beforehand to change change what builtins are added.
+   * @returns The modified LiteSVM instance
+   */
+  withPrecompiles(): LiteSVM {
+    this.inner.setPrecompiles();
+    return this;
+  }
 
-	/**
-	 * Calculates the minimum balance required to make an account with specified data length rent exempt.
-	 * @param dataLen - The number of bytes in the account.
-	 * @returns The required balance in lamports
-	 */
-	minimumBalanceForRentExemption(dataLen: bigint): bigint {
-		return this.inner.minimumBalanceForRentExemption(dataLen);
-	}
+  /**
+   * Calculates the minimum balance required to make an account with specified data length rent exempt.
+   * @param dataLen - The number of bytes in the account.
+   * @returns The required balance in lamports
+   */
+  minimumBalanceForRentExemption(dataLen: bigint): bigint {
+    return this.inner.minimumBalanceForRentExemption(dataLen);
+  }
 
-	/**
-	 * Return the account at the given address.
-	 * If the account is not found, None is returned.
-	 * @param address - The account address to look up.
-	 * @returns The account object, if the account exists.
-	 */
-	getAccount(address: Address): MaybeEncodedAccount {
-		return this.getAccountFor(address, { target: "base" });
-	}
+  /**
+   * Return the account at the given address.
+   * If the account is not found, None is returned.
+   * @param address - The account address to look up.
+   * @returns The account object, if the account exists.
+   */
+  getAccount(address: Address): MaybeEncodedAccount {
+    return this.getAccountFor(address, { target: "base" });
+  }
 
-	/**
-	 * Return the account at the given address from the selected ledger.
-	 * If the account is not found, None is returned.
-	 * @param address - The account address to look up.
-	 * @param options - The transaction target options.
-	 * @returns The account object, if the account exists.
-	 */
-	getAccountFor(
-		address: Address,
-		options?: TransactionTargetOptions,
-	): MaybeEncodedAccount {
-		const inner = this.inner.getAccountFor(
-			getAddressCodec().encode(address) as Uint8Array,
-			resolveTransactionTarget(options),
-		);
+  /**
+   * Return the account at the given address from the selected ledger.
+   * If the account is not found, None is returned.
+   * @param address - The account address to look up.
+   * @param options - The transaction target options.
+   * @returns The account object, if the account exists.
+   */
+  getAccountFor(
+    address: Address,
+    options?: TransactionTargetOptions,
+  ): MaybeEncodedAccount {
+    const inner = this.inner.getAccountFor(
+      getAddressCodec().encode(address) as Uint8Array,
+      resolveTransactionTarget(options),
+    );
 
-		return inner === null
-			? { exists: false, address }
-			: ({
-				exists: true,
-				...toEncodedAccount(address, inner),
-			} as MaybeEncodedAccount);
-	}
+    return inner === null
+      ? { exists: false, address }
+      : ({
+          exists: true,
+          ...toEncodedAccount(address, inner),
+        } as MaybeEncodedAccount);
+  }
 
-	/**
-	 * Create or overwrite an account, subverting normal runtime checks.
-	 *
-	 * This method exists to make it easier to set up artificial situations
-	 * that would be difficult to replicate by sending individual transactions.
-	 * Beware that it can be used to create states that would not be reachable
-	 * by sending transactions!
-	 *
-	 * @param address - The address to write to.
-	 * @param account - The account object to write.
-	 */
-	setAccount(account: EncodedAccount) {
-		this.inner.setAccount(
-			getAddressCodec().encode(account.address) as Uint8Array,
-			new Account(
-				BigInt(account.lamports),
-				account.data as Uint8Array,
-				getAddressCodec().encode(account.programAddress) as Uint8Array,
-				account.executable,
-				0n, // rentEpoch was deprecated from the RPC response and removed from Kit.
-			),
-		);
-	}
+  /**
+   * Create or overwrite an account, subverting normal runtime checks.
+   *
+   * This method exists to make it easier to set up artificial situations
+   * that would be difficult to replicate by sending individual transactions.
+   * Beware that it can be used to create states that would not be reachable
+   * by sending transactions!
+   *
+   * @param address - The address to write to.
+   * @param account - The account object to write.
+   */
+  setAccount(account: EncodedAccount) {
+    this.inner.setAccount(
+      getAddressCodec().encode(account.address) as Uint8Array,
+      new Account(
+        BigInt(account.lamports),
+        account.data as Uint8Array,
+        getAddressCodec().encode(account.programAddress) as Uint8Array,
+        account.executable,
+        0n, // rentEpoch was deprecated from the RPC response and removed from Kit.
+      ),
+    );
+  }
 
-	/**
-	 * Gets the balance of the provided account address.
-	 * @param address - The account address.
-	 * @returns The account's balance in lamports.
-	 */
-	getBalance(address: Address): Lamports | null {
-		const addressBytes = getAddressCodec().encode(address) as Uint8Array;
-		const balance = this.inner.getBalance(addressBytes);
+  /**
+   * Gets the balance of the provided account address.
+   * @param address - The account address.
+   * @returns The account's balance in lamports.
+   */
+  getBalance(address: Address): Lamports | null {
+    const addressBytes = getAddressCodec().encode(address) as Uint8Array;
+    const balance = this.inner.getBalance(addressBytes);
 
-		return balance === null ? null : lamports(balance);
-	}
+    return balance === null ? null : lamports(balance);
+  }
 
-	/**
-	 * Gets the latest blockhash.
-	 * Since LiteSVM doesn't have blocks, this is an arbitrary value controlled by LiteSVM
-	 * @returns The designated latest blockhash.
-	 */
-	latestBlockhash(): Blockhash {
-		return this.inner.latestBlockhash() as Blockhash;
-	}
+  /**
+   * Gets the latest blockhash.
+   * Since LiteSVM doesn't have blocks, this is an arbitrary value controlled by LiteSVM
+   * @returns The designated latest blockhash.
+   */
+  latestBlockhash(): Blockhash {
+    return this.inner.latestBlockhash() as Blockhash;
+  }
 
-	/** Gets the validator identity that delegation instructions should target. */
-	validatorIdentity(): Address {
-		return getAddressCodec().decode(this.inner.validatorIdentity());
-	}
+  /** Gets the validator identity that delegation instructions should target. */
+  validatorIdentity(): Address {
+    return getAddressCodec().decode(this.inner.validatorIdentity());
+  }
 
-	/**
-	 * Sets the lifetime on a transaction message using
-	 * the latest blockhash from the LiteSVM instance.
-	 */
-	setTransactionMessageLifetimeUsingLatestBlockhash<
-		TTransactionMessage extends TransactionMessage &
-		Partial<TransactionMessageWithLifetime>,
-	>(
-		transactionMessage: TTransactionMessage,
-	): ExcludeTransactionMessageLifetime<TTransactionMessage> &
-		TransactionMessageWithBlockhashLifetime {
-		return setTransactionMessageLifetimeUsingBlockhash(
-			{
-				blockhash: this.inner.latestBlockhash() as Blockhash,
-				lastValidBlockHeight: 0n,
-			},
-			transactionMessage,
-		);
-	}
+  /**
+   * Sets the lifetime on a transaction message using
+   * the latest blockhash from the LiteSVM instance.
+   */
+  setTransactionMessageLifetimeUsingLatestBlockhash<
+    TTransactionMessage extends TransactionMessage &
+      Partial<TransactionMessageWithLifetime>,
+  >(
+    transactionMessage: TTransactionMessage,
+  ): ExcludeTransactionMessageLifetime<TTransactionMessage> &
+    TransactionMessageWithBlockhashLifetime {
+    return setTransactionMessageLifetimeUsingBlockhash(
+      {
+        blockhash: this.inner.latestBlockhash() as Blockhash,
+        lastValidBlockHeight: 0n,
+      },
+      transactionMessage,
+    );
+  }
 
-	/**
-	 * Gets a transaction from the transaction history.
-	 * @param signature - The transaction signature bytes
-	 * @returns The transaction, if it is found in the history.
-	 */
-	getTransaction(
-		signature: Signature,
-	): TransactionMetadata | FailedTransactionMetadata | null {
-		return this.getTransactionFor(signature, { target: "base" });
-	}
+  /**
+   * Gets a transaction from the transaction history.
+   * @param signature - The transaction signature bytes
+   * @returns The transaction, if it is found in the history.
+   */
+  getTransaction(
+    signature: Signature,
+  ): TransactionMetadata | FailedTransactionMetadata | null {
+    return this.getTransactionFor(signature, { target: "base" });
+  }
 
-	/**
-	 * Gets a transaction from the selected ledger's transaction history.
-	 * @param signature - The transaction signature bytes
-	 * @param options - The transaction target options.
-	 * @returns The transaction, if it is found in the history.
-	 */
-	getTransactionFor(
-		signature: Signature,
-		options?: TransactionTargetOptions,
-	): TransactionMetadata | FailedTransactionMetadata | null {
-		const signatureBytes = getBase58Encoder().encode(signature) as Uint8Array;
-		return this.inner.getTransactionFor(
-			signatureBytes,
-			resolveTransactionTarget(options),
-		);
-	}
+  /**
+   * Gets a transaction from the selected ledger's transaction history.
+   * @param signature - The transaction signature bytes
+   * @param options - The transaction target options.
+   * @returns The transaction, if it is found in the history.
+   */
+  getTransactionFor(
+    signature: Signature,
+    options?: TransactionTargetOptions,
+  ): TransactionMetadata | FailedTransactionMetadata | null {
+    const signatureBytes = getBase58Encoder().encode(signature) as Uint8Array;
+    return this.inner.getTransactionFor(
+      signatureBytes,
+      resolveTransactionTarget(options),
+    );
+  }
 
-	/**
-	 * Airdrops the lamport amount specified to the given address.
-	 * @param address The airdrop recipient.
-	 * @param lamports - The amount to airdrop.
-	 * @returns The transaction result.
-	 */
-	airdrop(
-		address: Address,
-		lamports: Lamports,
-	): TransactionMetadata | FailedTransactionMetadata | null {
-		return this.inner.airdrop(
-			getAddressCodec().encode(address) as Uint8Array,
-			lamports,
-		);
-	}
+  /**
+   * Airdrops the lamport amount specified to the given address.
+   * @param address The airdrop recipient.
+   * @param lamports - The amount to airdrop.
+   * @returns The transaction result.
+   */
+  airdrop(
+    address: Address,
+    lamports: Lamports,
+  ): TransactionMetadata | FailedTransactionMetadata | null {
+    return this.inner.airdrop(
+      getAddressCodec().encode(address) as Uint8Array,
+      lamports,
+    );
+  }
 
-	/**
-	 * Adds an SBF program to the test environment from the file specified.
-	 * @param programId - The program ID.
-	 * @param path - The path to the .so file.
-	 */
-	addProgramFromFile(programId: Address, path: string) {
-		return this.inner.addProgramFromFile(
-			getAddressCodec().encode(programId) as Uint8Array,
-			path,
-		);
-	}
+  /**
+   * Adds an SBF program to the test environment from the file specified.
+   * @param programId - The program ID.
+   * @param path - The path to the .so file.
+   */
+  addProgramFromFile(programId: Address, path: string) {
+    return this.inner.addProgramFromFile(
+      getAddressCodec().encode(programId) as Uint8Array,
+      path,
+    );
+  }
 
-	/**
-	 * Adds am SBF program to the test environment.
-	 * @param programId - The program ID.
-	 * @param programBytes - The raw bytes of the compiled program.
-	 */
-	addProgram(programId: Address, programBytes: Uint8Array) {
-		return this.inner.addProgram(
-			getAddressCodec().encode(programId) as Uint8Array,
-			programBytes,
-		);
-	}
+  /**
+   * Adds am SBF program to the test environment.
+   * @param programId - The program ID.
+   * @param programBytes - The raw bytes of the compiled program.
+   */
+  addProgram(programId: Address, programBytes: Uint8Array) {
+    return this.inner.addProgram(
+      getAddressCodec().encode(programId) as Uint8Array,
+      programBytes,
+    );
+  }
 
-	/**
-	 * Adds an SBF program with a specific loader.
-	 * @param programId - The program ID.
-	 * @param programBytes - The raw bytes of the compiled program.
-	 * @param loaderId - The loader program ID.
-	 */
-	addProgramWithLoader(
-		programId: Address,
-		programBytes: Uint8Array,
-		loaderId: Address,
-	) {
-		return this.inner.addProgramWithLoader(
-			getAddressCodec().encode(programId) as Uint8Array,
-			programBytes,
-			getAddressCodec().encode(loaderId) as Uint8Array,
-		);
-	}
+  /**
+   * Adds an SBF program with a specific loader.
+   * @param programId - The program ID.
+   * @param programBytes - The raw bytes of the compiled program.
+   * @param loaderId - The loader program ID.
+   */
+  addProgramWithLoader(
+    programId: Address,
+    programBytes: Uint8Array,
+    loaderId: Address,
+  ) {
+    return this.inner.addProgramWithLoader(
+      getAddressCodec().encode(programId) as Uint8Array,
+      programBytes,
+      getAddressCodec().encode(loaderId) as Uint8Array,
+    );
+  }
 
-	/**
-	 * Processes a transaction and returns the result.
-	 * @param tx - The transaction to send.
-	 * @returns TransactionMetadata if the transaction succeeds, else FailedTransactionMetadata
-	 */
-	sendTransaction(
-		tx: Transaction,
-		options?: TransactionTargetOptions,
-	): TransactionMetadata | FailedTransactionMetadata {
-		const internal = this.inner;
-		const target = resolveTransactionTarget(options);
-		if (internal.getSigverify()) {
-			assertIsFullySignedTransaction(tx);
-		}
+  /**
+   * Processes a transaction and returns the result.
+   * @param tx - The transaction to send.
+   * @returns TransactionMetadata if the transaction succeeds, else FailedTransactionMetadata
+   */
+  sendTransaction(
+    tx: Transaction,
+    options?: TransactionTargetOptions,
+  ): TransactionMetadata | FailedTransactionMetadata {
+    const internal = this.inner;
+    const target = resolveTransactionTarget(options);
+    if (internal.getSigverify()) {
+      assertIsFullySignedTransaction(tx);
+    }
 
-		// The version is located at the beginning of the message bytes.
-		const version = getTransactionVersionDecoder().decode(tx.messageBytes);
-		const serialized = getTransactionEncoder().encode(tx) as Uint8Array;
+    // The version is located at the beginning of the message bytes.
+    const version = getTransactionVersionDecoder().decode(tx.messageBytes);
+    const serialized = getTransactionEncoder().encode(tx) as Uint8Array;
 
-		switch (version) {
-			case "legacy":
-				return internal.sendLegacyTransactionTo(serialized, target);
-			case 0:
-				return internal.sendVersionedTransactionTo(serialized, target);
-			default:
-				throw new Error(`Unsupported transaction version: ${version}`);
-		}
-	}
+    switch (version) {
+      case "legacy":
+        return internal.sendLegacyTransactionTo(serialized, target);
+      case 0:
+        return internal.sendVersionedTransactionTo(serialized, target);
+      default:
+        throw new Error(`Unsupported transaction version: ${version}`);
+    }
+  }
 
-	/**
-	 * Simulates a transaction
-	 * @param tx The transaction to simulate
-	 * @returns SimulatedTransactionInfo if simulation succeeds, else FailedTransactionMetadata
-	 */
-	simulateTransaction(
-		tx: Transaction,
-		options?: TransactionTargetOptions,
-	): FailedTransactionMetadata | SimulatedTransactionInfo {
-		const internal = this.inner;
-		const target = resolveTransactionTarget(options);
-		if (internal.getSigverify()) {
-			assertIsFullySignedTransaction(tx);
-		}
+  /**
+   * Simulates a transaction
+   * @param tx The transaction to simulate
+   * @returns SimulatedTransactionInfo if simulation succeeds, else FailedTransactionMetadata
+   */
+  simulateTransaction(
+    tx: Transaction,
+    options?: TransactionTargetOptions,
+  ): FailedTransactionMetadata | SimulatedTransactionInfo {
+    const internal = this.inner;
+    const target = resolveTransactionTarget(options);
+    if (internal.getSigverify()) {
+      assertIsFullySignedTransaction(tx);
+    }
 
-		// The version is located at the beginning of the message bytes.
-		const version = getTransactionVersionDecoder().decode(tx.messageBytes);
-		const serialized = getTransactionEncoder().encode(tx) as Uint8Array;
+    // The version is located at the beginning of the message bytes.
+    const version = getTransactionVersionDecoder().decode(tx.messageBytes);
+    const serialized = getTransactionEncoder().encode(tx) as Uint8Array;
 
-		const inner = (() => {
-			switch (version) {
-				case "legacy":
-					return internal.simulateLegacyTransactionTo(serialized, target);
-				case 0:
-					return internal.simulateVersionedTransactionTo(serialized, target);
-				default:
-					throw new Error(`Unsupported transaction version: ${version}`);
-			}
-		})();
+    const inner = (() => {
+      switch (version) {
+        case "legacy":
+          return internal.simulateLegacyTransactionTo(serialized, target);
+        case 0:
+          return internal.simulateVersionedTransactionTo(serialized, target);
+        default:
+          throw new Error(`Unsupported transaction version: ${version}`);
+      }
+    })();
 
-		if (inner instanceof FailedTransactionMetadata) {
-			return inner;
-		}
+    if (inner instanceof FailedTransactionMetadata) {
+      return inner;
+    }
 
-		return new SimulatedTransactionInfo(inner);
-	}
+    return new SimulatedTransactionInfo(inner);
+  }
 
-	/**
-	 * Expires the current blockhash.
-	 * The return value of `latestBlockhash()` will be different after calling this.
-	 */
-	expireBlockhash() {
-		this.expireBlockhashFor({ target: "base" });
-	}
+  /**
+   * Expires the current blockhash.
+   * The return value of `latestBlockhash()` will be different after calling this.
+   */
+  expireBlockhash() {
+    this.expireBlockhashFor({ target: "base" });
+  }
 
-	/**
-	 * Expires the current blockhash for the selected ledger.
-	 * The return value of `latestBlockhash()` will be different after calling this with the base target.
-	 * @param options - The transaction target options.
-	 */
-	expireBlockhashFor(options?: TransactionTargetOptions) {
-		this.inner.expireBlockhashFor(resolveTransactionTarget(options));
-	}
+  /**
+   * Expires the current blockhash for the selected ledger.
+   * The return value of `latestBlockhash()` will be different after calling this with the base target.
+   * @param options - The transaction target options.
+   */
+  expireBlockhashFor(options?: TransactionTargetOptions) {
+    this.inner.expireBlockhashFor(resolveTransactionTarget(options));
+  }
 
-	/**
-	 * Warps the clock to the specified slot. This is a convenience wrapper
-	 * around `setClock()`.
-	 * @param slot - The new slot.
-	 */
-	warpToSlot(slot: bigint) {
-		this.inner.warpToSlot(slot);
-	}
+  /**
+   * Warps the clock to the specified slot. This is a convenience wrapper
+   * around `setClock()`.
+   * @param slot - The new slot.
+   */
+  warpToSlot(slot: bigint) {
+    this.inner.warpToSlot(slot);
+  }
 
-	/**
-	 * Get the cluster clock.
-	 * @returns the clock object.
-	 */
-	getClock(): Clock {
-		return this.inner.getClock();
-	}
+  /**
+   * Get the cluster clock.
+   * @returns the clock object.
+   */
+  getClock(): Clock {
+    return this.inner.getClock();
+  }
 
-	/**
-	 * Overwrite the clock sysvar.
-	 * @param clock - The clock object.
-	 */
-	setClock(clock: Clock) {
-		this.inner.setClock(clock);
-	}
+  /**
+   * Overwrite the clock sysvar.
+   * @param clock - The clock object.
+   */
+  setClock(clock: Clock) {
+    this.inner.setClock(clock);
+  }
 
-	/**
-	 * Get the EpochRewards sysvar.
-	 * @returns the EpochRewards object.
-	 */
-	getEpochRewards(): EpochRewards {
-		return this.inner.getEpochRewards();
-	}
+  /**
+   * Get the EpochRewards sysvar.
+   * @returns the EpochRewards object.
+   */
+  getEpochRewards(): EpochRewards {
+    return this.inner.getEpochRewards();
+  }
 
-	/**
-	 * Overwrite the EpochRewards sysvar.
-	 * @param rewards - The EpochRewards object.
-	 */
-	setEpochRewards(rewards: EpochRewards) {
-		this.inner.setEpochRewards(rewards);
-	}
+  /**
+   * Overwrite the EpochRewards sysvar.
+   * @param rewards - The EpochRewards object.
+   */
+  setEpochRewards(rewards: EpochRewards) {
+    this.inner.setEpochRewards(rewards);
+  }
 
-	/**
-	 * Get the EpochSchedule sysvar.
-	 * @returns the EpochSchedule object.
-	 */
-	getEpochSchedule(): EpochSchedule {
-		return this.inner.getEpochSchedule();
-	}
+  /**
+   * Get the EpochSchedule sysvar.
+   * @returns the EpochSchedule object.
+   */
+  getEpochSchedule(): EpochSchedule {
+    return this.inner.getEpochSchedule();
+  }
 
-	/**
-	 * Overwrite the EpochSchedule sysvar.
-	 * @param schedule - The EpochSchedule object.
-	 */
-	setEpochSchedule(schedule: EpochSchedule) {
-		this.inner.setEpochSchedule(schedule);
-	}
+  /**
+   * Overwrite the EpochSchedule sysvar.
+   * @param schedule - The EpochSchedule object.
+   */
+  setEpochSchedule(schedule: EpochSchedule) {
+    this.inner.setEpochSchedule(schedule);
+  }
 
-	/**
-	 * Get the last restart slot sysvar.
-	 * @returns the last restart slot.
-	 */
-	getLastRestartSlot(): bigint {
-		return this.inner.getLastRestartSlot();
-	}
+  /**
+   * Get the last restart slot sysvar.
+   * @returns the last restart slot.
+   */
+  getLastRestartSlot(): bigint {
+    return this.inner.getLastRestartSlot();
+  }
 
-	/**
-	 * Overwrite the last restart slot sysvar.
-	 * @param slot - The last restart slot.
-	 */
-	setLastRestartSlot(slot: bigint) {
-		this.inner.setLastRestartSlot(slot);
-	}
+  /**
+   * Overwrite the last restart slot sysvar.
+   * @param slot - The last restart slot.
+   */
+  setLastRestartSlot(slot: bigint) {
+    this.inner.setLastRestartSlot(slot);
+  }
 
-	/**
-	 * Get the cluster rent.
-	 * @returns The rent object.
-	 */
-	getRent(): Rent {
-		return this.inner.getRent();
-	}
+  /**
+   * Get the cluster rent.
+   * @returns The rent object.
+   */
+  getRent(): Rent {
+    return this.inner.getRent();
+  }
 
-	/**
-	 * Overwrite the rent sysvar.
-	 * @param rent - The new rent object.
-	 */
-	setRent(rent: Rent) {
-		this.inner.setRent(rent);
-	}
+  /**
+   * Overwrite the rent sysvar.
+   * @param rent - The new rent object.
+   */
+  setRent(rent: Rent) {
+    this.inner.setRent(rent);
+  }
 
-	/**
-	 * Get the SlotHashes sysvar.
-	 * @returns The SlotHash array.
-	 */
-	getSlotHashes(): SlotHash[] {
-		return this.inner.getSlotHashes();
-	}
+  /**
+   * Get the SlotHashes sysvar.
+   * @returns The SlotHash array.
+   */
+  getSlotHashes(): SlotHash[] {
+    return this.inner.getSlotHashes();
+  }
 
-	/**
-	 * Overwrite the SlotHashes sysvar.
-	 * @param hashes - The SlotHash array.
-	 */
-	setSlotHashes(hashes: SlotHash[]) {
-		this.inner.setSlotHashes(hashes);
-	}
+  /**
+   * Overwrite the SlotHashes sysvar.
+   * @param hashes - The SlotHash array.
+   */
+  setSlotHashes(hashes: SlotHash[]) {
+    this.inner.setSlotHashes(hashes);
+  }
 
-	/**
-	 * Get the SlotHistory sysvar.
-	 * @returns The SlotHistory object.
-	 */
-	getSlotHistory(): SlotHistory {
-		return this.inner.getSlotHistory();
-	}
+  /**
+   * Get the SlotHistory sysvar.
+   * @returns The SlotHistory object.
+   */
+  getSlotHistory(): SlotHistory {
+    return this.inner.getSlotHistory();
+  }
 
-	/**
-	 * Overwrite the SlotHistory sysvar.
-	 * @param history - The SlotHistory object
-	 */
-	setSlotHistory(history: SlotHistory) {
-		this.inner.setSlotHistory(history);
-	}
+  /**
+   * Overwrite the SlotHistory sysvar.
+   * @param history - The SlotHistory object
+   */
+  setSlotHistory(history: SlotHistory) {
+    this.inner.setSlotHistory(history);
+  }
 
-	/**
-	 * Get the StakeHistory sysvar.
-	 * @returns The StakeHistory object.
-	 */
-	getStakeHistory(): StakeHistory {
-		return this.inner.getStakeHistory();
-	}
+  /**
+   * Get the StakeHistory sysvar.
+   * @returns The StakeHistory object.
+   */
+  getStakeHistory(): StakeHistory {
+    return this.inner.getStakeHistory();
+  }
 
-	/**
-	 * Overwrite the StakeHistory sysvar.
-	 * @param history - The StakeHistory object
-	 */
-	setStakeHistory(history: StakeHistory) {
-		this.inner.setStakeHistory(history);
-	}
+  /**
+   * Overwrite the StakeHistory sysvar.
+   * @param history - The StakeHistory object
+   */
+  setStakeHistory(history: StakeHistory) {
+    this.inner.setStakeHistory(history);
+  }
 }

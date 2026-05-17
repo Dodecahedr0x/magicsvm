@@ -1,7 +1,7 @@
 import { getAddressEncoder } from "@solana/kit";
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { FeatureSet } from "../litesvm";
+import { FeatureSet } from "../magicsvm";
 import { generateAddress } from "./util";
 
 describe("FeatureSet", () => {
@@ -17,7 +17,9 @@ describe("FeatureSet", () => {
 
   it("should activate and check feature", async () => {
     const fs = new FeatureSet();
-    const featureId = getAddressEncoder().encode(await generateAddress()) as Uint8Array;
+    const featureId = getAddressEncoder().encode(
+      await generateAddress(),
+    ) as Uint8Array;
 
     const isActiveBeforeActivation = fs.isActive(featureId);
     assert.strictEqual(isActiveBeforeActivation, false);
@@ -33,7 +35,9 @@ describe("FeatureSet", () => {
 
   it("should deactivate feature", async () => {
     const fs = FeatureSet.allEnabled();
-    const featureId = getAddressEncoder().encode(await generateAddress()) as Uint8Array;
+    const featureId = getAddressEncoder().encode(
+      await generateAddress(),
+    ) as Uint8Array;
 
     fs.activate(featureId, 50n);
     assert.strictEqual(fs.isActive(featureId), true);
