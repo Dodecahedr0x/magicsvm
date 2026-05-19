@@ -292,7 +292,7 @@ export declare class MagicSvm {
   setFeatureSet(featureSet: FeatureSet): void
   /** Changes the default builtins */
   setBuiltins(): void
-  /** Changes the initial lamports in LiteSVM's airdrop account */
+  /** Changes the initial lamports in MagicSVM's airdrop account */
   setLamports(lamports: bigint): void
   /** Includes the standard SPL programs */
   setDefaultPrograms(): void

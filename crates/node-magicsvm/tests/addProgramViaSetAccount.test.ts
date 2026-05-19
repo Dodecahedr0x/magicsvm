@@ -4,7 +4,7 @@ import {
 	generateKeyPairSigner,
 	lamports,
 } from "@solana/kit";
-import { LiteSVM } from "index";
+import { MagicSVM } from "index";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -25,8 +25,8 @@ test("add program via setAccount", async () => {
 		generateAddress(),
 	]);
 
-	// And a LiteSVM client with a hello world program loaded using `addProgram`.
-	const svm = new LiteSVM();
+	// And a MagicSVM client with a hello world program loaded using `addProgram`.
+	const svm = new MagicSVM();
 	svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 	setHelloWorldAccount(svm, greetedAddress, programAddress);
 	svm.addProgram(programAddress, readFileSync("program_bytes/counter.so"));

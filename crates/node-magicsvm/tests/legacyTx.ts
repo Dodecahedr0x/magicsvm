@@ -10,7 +10,7 @@ import {
 	setTransactionMessageLifetimeUsingBlockhash,
 	signTransactionMessageWithSigners,
 } from "@solana/kit";
-import { LiteSVM } from "index";
+import { MagicSVM } from "index";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -30,8 +30,8 @@ test("legacy tx", async () => {
 		generateAddress(),
 	]);
 
-	// And a LiteSVM client with a hello world program and greeted account set up.
-	const svm = new LiteSVM();
+	// And a MagicSVM client with a hello world program and greeted account set up.
+	const svm = new MagicSVM();
 	svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 	setHelloWorldProgram(svm, programAddress);
 	setHelloWorldAccount(svm, greetedAddress, programAddress);

@@ -1,6 +1,6 @@
 import { generateKeyPairSigner, lamports } from "@solana/kit";
 import { TransactionErrorFieldless } from "internal";
-import { FailedTransactionMetadata, LiteSVM } from "magicsvm";
+import { FailedTransactionMetadata, MagicSVM } from "magicsvm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -16,8 +16,8 @@ test("non-existent program", async () => {
     generateAddress(),
   ]);
 
-  // And a LiteSVM client with no loaded programs.
-  const svm = new LiteSVM();
+  // And a MagicSVM client with no loaded programs.
+  const svm = new MagicSVM();
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 
   // When we try to send a transaction to a non-existent program.

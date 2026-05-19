@@ -1,8 +1,13 @@
 import { getTransferSolInstruction } from "@solana-program/system";
-import { generateKeyPairSigner, lamports } from "@solana/kit";
+import {
+  createKeyPairSignerFromPrivateKeyBytes,
+  generateKeyPairSigner,
+  lamports,
+} from "@solana/kit";
 import { TransactionErrorFieldless } from "internal";
-import { FailedTransactionMetadata, LiteSVM } from "magicsvm";
+import { FailedTransactionMetadata, MagicSVM } from "magicsvm";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 import {
   generateAddress,
@@ -11,10 +16,15 @@ import {
 } from "./util";
 
 test("constructor accepts a validator identity", async () => {
-  const validatorIdentity = await generateAddress();
-  const svm = new LiteSVM({ validatorIdentity });
+  const validatorPrivateKey = randomBytes(32);
+  const validator = await createKeyPairSignerFromPrivateKeyBytes(
+    validatorPrivateKey,
+  );
+  const svm = new MagicSVM({
+    validatorIdentity: new Uint8Array(validatorPrivateKey),
+  });
 
-  assert.strictEqual(svm.validatorIdentity(), validatorIdentity);
+  assert.strictEqual(svm.validatorIdentity(), validator.address);
 });
 
 test("sendTransaction defaults to base target and accepts explicit base target", async () => {
@@ -22,7 +32,7 @@ test("sendTransaction defaults to base target and accepts explicit base target",
     generateKeyPairSigner(),
     generateAddress(),
   ]);
-  const svm = new LiteSVM();
+  const svm = new MagicSVM();
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 
   const transaction = await getSignedTransaction(svm, payer, [
@@ -43,7 +53,7 @@ test("sendTransaction rejects non-delegated ephemeral writes", async () => {
     generateKeyPairSigner(),
     generateAddress(),
   ]);
-  const svm = new LiteSVM();
+  const svm = new MagicSVM();
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 
   const transaction = await getSignedTransaction(svm, payer, [

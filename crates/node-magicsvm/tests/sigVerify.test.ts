@@ -5,7 +5,7 @@ import {
 	SignatureBytes,
 	TransactionPartialSigner,
 } from "@solana/kit";
-import { LiteSVM } from "index";
+import { MagicSVM } from "index";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -36,8 +36,8 @@ test("test sigverify", async () => {
 			})),
 	};
 
-	// And a LiteSVM client with sigverify disabled.
-	const svm = new LiteSVM();
+	// And a MagicSVM client with sigverify disabled.
+	const svm = new MagicSVM();
 	svm.withSigverify(false);
 	svm.airdrop(fakePayer.address, lamports(LAMPORTS_PER_SOL));
 	setHelloWorldProgram(svm, programAddress);

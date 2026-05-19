@@ -1,6 +1,6 @@
 import { generateKeyPairSigner, lamports } from "@solana/kit";
 import { TransactionErrorFieldless } from "internal";
-import { FailedTransactionMetadata, LiteSVM } from "magicsvm";
+import { FailedTransactionMetadata, MagicSVM } from "magicsvm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -21,8 +21,8 @@ test("compute limit", async () => {
     generateAddress(),
   ]);
 
-  // And a LiteSVM client with a CU limit set to 10.
-  const svm = new LiteSVM();
+  // And a MagicSVM client with a CU limit set to 10.
+  const svm = new MagicSVM();
   setComputeUnitLimit(svm, 10n);
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
   setHelloWorldProgram(svm, programAddress);

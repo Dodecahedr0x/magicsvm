@@ -14,7 +14,7 @@ import {
 	setHelloWorldAccount,
 	setHelloWorldProgram,
 } from "./util";
-import { LiteSVM } from "index";
+import { MagicSVM } from "index";
 
 test("get transaction", async () => {
 	// Given the following addresses and signers.
@@ -24,8 +24,8 @@ test("get transaction", async () => {
 		generateAddress(),
 	]);
 
-	// And a LiteSVM client with a hello world program and greeted account set up.
-	const svm = new LiteSVM();
+	// And a MagicSVM client with a hello world program and greeted account set up.
+	const svm = new MagicSVM();
 	svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 	setHelloWorldProgram(svm, programAddress);
 	setHelloWorldAccount(svm, greetedAddress, programAddress);

@@ -1,7 +1,7 @@
 import { generateKeyPairSigner, lamports } from "@solana/kit";
 import {
   FailedTransactionMetadata,
-  LiteSVM,
+  MagicSVM,
   TransactionMetadata,
 } from "magicsvm";
 import assert from "node:assert/strict";
@@ -19,8 +19,8 @@ test("clock", async () => {
     generateAddress(),
   ]);
 
-  // And a LiteSVM client with a hello world program loaded from `magicsvm_clock_example.so`.
-  const svm = new LiteSVM();
+  // And a MagicSVM client with a hello world program loaded from `magicsvm_clock_example.so`.
+  const svm = new MagicSVM();
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
   svm.addProgramFromFile(
     programAddress,

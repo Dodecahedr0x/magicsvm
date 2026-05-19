@@ -4,7 +4,7 @@ import {
   createSolanaRpc,
   fetchEncodedAccount,
 } from "@solana/kit";
-import { LiteSVM } from "magicsvm";
+import { MagicSVM } from "magicsvm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -14,7 +14,7 @@ test("copy accounts from devnet", async () => {
   const account = await fetchEncodedAccount(rpc, usdcMint);
   assertAccountExists(account);
 
-  const svm = new LiteSVM();
+  const svm = new MagicSVM();
   svm.setAccount(account);
   const rawAccount = svm.getAccount(usdcMint);
   assert.notStrictEqual(rawAccount, null);

@@ -14,7 +14,7 @@ import {
   lamports,
   none,
 } from "@solana/kit";
-import { LiteSVM } from "magicsvm";
+import { MagicSVM } from "magicsvm";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { generateAddress, LAMPORTS_PER_SOL } from "./util";
@@ -27,8 +27,8 @@ test("infinite usdc mint", async () => {
   ]);
   const usdcMint = address("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 
-  // And a LiteSVM client such that the payer has some balance.
-  const svm = new LiteSVM();
+  // And a MagicSVM client such that the payer has some balance.
+  const svm = new MagicSVM();
   svm.airdrop(payer.address, lamports(LAMPORTS_PER_SOL));
 
   // Add the following associated token account for the owner.
@@ -51,7 +51,7 @@ test("infinite usdc mint", async () => {
   };
   const encodedTokenAccountData = getTokenEncoder().encode(tokenAccountData);
 
-  // When we set that associated token account on the LiteSVM.
+  // When we set that associated token account on the MagicSVM.
   svm.setAccount({
     address: ata,
     lamports: lamports(LAMPORTS_PER_SOL),
