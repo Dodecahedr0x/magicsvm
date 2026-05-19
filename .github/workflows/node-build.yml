@@ -241,11 +241,14 @@ jobs:
       #     platforms: all
       # - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
       #   if: ${{ contains(matrix.target, 'armv7') }}
+      - name: Verify musl binding artifact
+        if: ${{ endsWith(matrix.target, '-musl') }}
+        run: test -f magicsvm/magicsvm.*.node
       - name: Test bindings
         if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: yarn test
       - name: Test bindings in Docker
-        if: ${{ matrix.target != 'aarch64-unknown-linux-gnu' }}
+        if: ${{ matrix.target != 'aarch64-unknown-linux-gnu' && !endsWith(matrix.target, '-musl') }}
         uses: addnab/docker-run-action@v3
         with:
           image: ${{ steps.docker.outputs.IMAGE }}

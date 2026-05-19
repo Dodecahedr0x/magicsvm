@@ -18,15 +18,7 @@ import {
 	setHelloWorldProgram,
 } from "./util";
 
-const isLinuxMusl =
-	process.platform === "linux" &&
-	!(
-		process.report.getReport() as {
-			header?: { glibcVersionRuntime?: string };
-		}
-	).header?.glibcVersionRuntime;
-
-test("test sigverify", { skip: isLinuxMusl }, async () => {
+test("test sigverify", async () => {
 	// Given the following addresses.
 	const [fakePayerAddress, programAddress, greetedAddress] = await Promise.all([
 		generateAddress(),
