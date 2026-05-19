@@ -3,7 +3,7 @@ use {
         spl_token::{instruction::initialize_multisig2, state::Multisig},
         TOKEN_ID,
     },
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     solana_address::Address,
     solana_keypair::Keypair,
     solana_program_pack::Pack,

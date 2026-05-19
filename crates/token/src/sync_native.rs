@@ -1,6 +1,6 @@
 use {
     super::{spl_token::instruction::sync_native, TOKEN_ID},
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     solana_address::Address,
     solana_keypair::Keypair,
     solana_signer::Signer,

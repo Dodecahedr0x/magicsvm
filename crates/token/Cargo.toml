@@ -1,6 +1,6 @@
 [package]
-name = "litesvm-token"
-description = "Helpers for working with spl-token and LiteSVM"
+name = "magicsvm-token"
+description = "Helpers for working with spl-token and MagicSVM"
 license.workspace = true
 version.workspace = true
 edition.workspace = true
@@ -16,7 +16,7 @@ default = ["dep:spl-token-interface", "dep:solana-account", "dep:solana-rent"]
 token-2022 = ["dep:spl-token-2022-interface"]
 
 [dependencies]
-litesvm.workspace = true
+magicsvm.workspace = true
 smallvec.workspace = true
 solana-account = { workspace = true, optional = true }
 solana-address.workspace = true

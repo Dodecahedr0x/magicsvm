@@ -37,7 +37,7 @@ pub use {
     set_authority::*, sync_native::*, thaw_account::*, transfer::*, transfer_checked::*,
 };
 use {
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     solana_address::Address,
     solana_program_pack::{IsInitialized, Pack},
     solana_transaction_error::TransactionError,

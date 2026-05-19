@@ -26,7 +26,7 @@ cargo add --dev litesvm
 ### 🤖 Minimal Example
 
 ```rust
-use litesvm::LiteSVM;
+use magicsvm::LiteSVM;
 use solana_address::Address;
 use solana_keypair::Keypair;
 use solana_message::Message;
@@ -85,7 +85,7 @@ finalize, and undelegate delegation-program instructions copy the ephemeral
 account state back to the base ledger.
 
 ```rust
-use litesvm::{MagicSVM, TransactionTarget, DEFAULT_VALIDATOR_IDENTITY};
+use magicsvm::{MagicSVM, TransactionTarget, DEFAULT_VALIDATOR_IDENTITY};
 
 let mut svm = MagicSVM::new();
 assert_eq!(svm.validator_identity(), DEFAULT_VALIDATOR_IDENTITY);

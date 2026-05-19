@@ -7,7 +7,7 @@ use {
         spl_token::{instruction::initialize_account3, state::Account},
         TOKEN_ID,
     },
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     solana_address::Address,
     solana_keypair::Keypair,
     solana_signer::Signer,

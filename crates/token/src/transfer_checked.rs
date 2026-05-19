@@ -4,7 +4,7 @@ use {
         spl_token::{instruction::transfer_checked, state::Mint},
         TOKEN_ID,
     },
-    litesvm::{types::FailedTransactionMetadata, LiteSVM},
+    magicsvm::{types::FailedTransactionMetadata, LiteSVM},
     smallvec::{smallvec, SmallVec},
     solana_address::Address,
     solana_keypair::Keypair,
